@@ -3,12 +3,13 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:latest
-    container_name: mongodb
+    container_name: mongodb_whatsapp
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongo_USER
       MONGO_INITDB_ROOT_PASSWORD: mongo_password
+      MONGO_INITDB_DB_NAME: whaDB
     volumes:
       - mongodb_whatsapp_data:/data/db
   redis:
