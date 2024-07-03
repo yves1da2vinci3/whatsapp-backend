@@ -1,4 +1,4 @@
-from minio import Minio
+from minio import Minio # type: ignore
 
 minio_client = Minio(
     "minio:9000",

@@ -10,3 +10,8 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
 app.include_router(stories_router, prefix="/stories", tags=["stories"])
 app.include_router(calls_router, prefix="/calls", tags=["calls"])
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the whataspp API"}

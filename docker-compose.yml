@@ -1,48 +1,37 @@
 version: '3.8'
 
 services:
-  fastapi:
-    build: .
-    container_name: fastapi
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - mongo
-      - redis
-      - minio
-
-  mongo:
-    image: mongo:4.4
-    container_name: mongo
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
     ports:
       - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo_USER
+      MONGO_INITDB_ROOT_PASSWORD: mongo_password
     volumes:
-      - mongo_data:/data/db
-
+      - mongodb_whatsapp_data:/data/db
   redis:
-    image: redis:6.2
+    image: redis:latest
     container_name: redis
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
-
+      - redis_whatsapp_data:/data
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: minio
     environment:
-      MINIO_ACCESS_KEY: your_access_key
-      MINIO_SECRET_KEY: your_secret_key
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_whatsapp_data:/data
     ports:
       - "9000:9000"
-    command: server /data
-    volumes:
-      - minio_data:/data
+      - "9090:9090"
+    command: server /data --console-address ":9090"
 
 volumes:
-  mongo_data:
-  redis_data:
-  minio_data:
+  mongodb_whatsapp_data:
+  redis_whatsapp_data:
+  minio_whatsapp_data:

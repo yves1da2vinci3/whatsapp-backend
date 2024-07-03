@@ -9,3 +9,11 @@ class Call(BaseModel):
     timestamp: datetime
     duration: Optional[int] = None
     participants: List[str]
+    
+class CallCreate(BaseModel):
+    caller: str
+    receiver: str
+    type: str  # audio or video
+    timestamp: datetime
+    duration: Optional[int] = None
+    participants: List[str]
