@@ -4,7 +4,7 @@ import tempfile
 import os
 from app.utils.minio_client import upload_to_minio, get_bucket_objects
 
-router = APIRouter(prefix="/upload")
+router = APIRouter()
 
 @router.post("/")
 async def upload_file(
