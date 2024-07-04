@@ -9,9 +9,9 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongo_USER
       MONGO_INITDB_ROOT_PASSWORD: mongo_password
-      MONGO_INITDB_DB_NAME: whaDB
     volumes:
       - mongodb_whatsapp_data:/data/db
+
   redis:
     image: redis:latest
     container_name: redis
@@ -19,6 +19,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_whatsapp_data:/data
+
   minio:
     image: minio/minio:latest
     container_name: minio
