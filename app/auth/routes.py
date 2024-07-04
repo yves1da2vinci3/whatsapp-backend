@@ -14,16 +14,16 @@ async def enter_number(phone: PhoneNumber, db=Depends(get_db)):
         return user
     else:
         new_user = User(phone=phone.number)
-        db.users.insert_one(new_user.dict())
+        db.users.insert_one(new_user.model_dump())
         send_otp(phone.number)
         return {"message": "User created, OTP sent"}
 
 @router.post("/register_user")
 async def register_user(user_info: UserInfo, phone: PhoneNumber, db=Depends(get_db)):
-    db.users.update_one({"phone": phone.number}, {"$set": user_info.dict()})
+    db.users.update_one({"phone": phone.number}, {"$set": user_info.model_dump()})
     return {"message": "User information updated"}
 
 @router.put("/modify_user")
 async def modify_user(user_info: UserInfo, phone: PhoneNumber, db=Depends(get_db)):
-    db.users.update_one({"phone": phone.number}, {"$set": user_info.dict()})
+    db.users.update_one({"phone": phone.number}, {"$set": user_info.model_dump()})
     return {"message": "User information modified"}
