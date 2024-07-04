@@ -114,6 +114,7 @@ async def modify_user(
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(refresh_tokenRequest: RefreshTokenRequest):
     new_tokens = token_manager.refresh_tokens(refresh_tokenRequest.refresh_token)
+    print(new_tokens)
     if new_tokens:
         return TokenResponse(
             access_token=new_tokens["access_token"],
