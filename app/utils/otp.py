@@ -1,3 +1,3 @@
-def send_otp(phone_number: str):
+def send_otp(email: str):
     # Placeholder for actual OTP sending logic
-    print(f"Sending OTP to {phone_number}")
+    print(f"Sending OTP to {email}")

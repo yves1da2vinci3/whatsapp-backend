@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
-class PhoneNumber(BaseModel):
-    number: str
+class Email(BaseModel):
+    email: str
 
 class UserInfo(BaseModel):
     name: str
