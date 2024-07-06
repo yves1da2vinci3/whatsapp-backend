@@ -11,4 +11,4 @@ def send_email(email: str, subject: str, message: str):
     s.starttls()
     s.login(MY_ADDRESS, PASSWORD)
     email_message = f"Subject: {subject}\n\n{message}"
-    s.sendmail("&&&&&&&&&&&", email, email_message)
+    s.sendmail(MY_ADDRESS, email, email_message)
