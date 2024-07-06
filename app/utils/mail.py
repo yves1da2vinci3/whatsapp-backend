@@ -1,14 +1,37 @@
 import smtplib
 import os
 from dotenv import load_dotenv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
+
 MY_ADDRESS = os.getenv("GMAIL_EMAIL")
 PASSWORD = os.getenv("GMAIL_PASSWORD")
-s = smtplib.SMTP("smtp.gmail.com", port=587)
 
 def send_email(email: str, subject: str, message: str):
-    s.starttls()
-    s.login(MY_ADDRESS, PASSWORD)
-    email_message = f"Subject: {subject}\n\n{message}"
-    s.sendmail(MY_ADDRESS, email, email_message)
+    try:
+        # Create a secure SSL context
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.ehlo()  # Can be omitted
+        server.starttls()
+        server.ehlo()  # Can be omitted
+        server.login(MY_ADDRESS, PASSWORD)
+
+        # Create a MIMEText object
+        msg = MIMEMultipart()
+        msg['From'] = MY_ADDRESS
+        msg['To'] = email
+        msg['Subject'] = subject
+
+        # Add body to email
+        msg.attach(MIMEText(message, 'plain'))
+
+        # Send the email
+        server.send_message(msg)
+
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"An error occurred while sending email: {str(e)}")
+    finally:
+        server.quit()
