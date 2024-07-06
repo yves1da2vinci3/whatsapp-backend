@@ -53,11 +53,14 @@ async def verify_otp(mail: Email, otp: int, is_new_user: bool, db=Depends(get_db
         redis_client.delete_otp(mail.email)
         access_token = token_manager.create_access_token({"email": mail.email})
         refresh_token = token_manager.create_refresh_token(mail.email)
+        userToSend = None
+        userToSend = UserInfo(**user) if not is_new_user else None
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="bearer",
-            is_new_user=is_new_user,
+            user=userToSend.model_dump() if userToSend else {},
         )
     else:
         raise HTTPException(
@@ -120,7 +123,7 @@ async def refresh_token(refresh_tokenRequest: RefreshTokenRequest):
             access_token=new_tokens["access_token"],
             refresh_token=new_tokens["refresh_token"],
             token_type="bearer",
-            is_new_user=False,
+            user={},  # Assuming no user information needed here
         )
     else:
         raise HTTPException(
