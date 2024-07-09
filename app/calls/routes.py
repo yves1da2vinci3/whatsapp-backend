@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.utils.database import get_db
 from .models import Call
-from .models import CallCreate
+from .schemas import CallCreate
 
 router = APIRouter()
 
