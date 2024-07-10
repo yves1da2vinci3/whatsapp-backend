@@ -53,7 +53,7 @@ def upload_to_minio(file_path: str, bucket_name: str, object_name: str) -> str:
     print(f"File uploaded: {object_name}")
 
     # Construct and return the object path
-    object_path = f"{bucket_name}/{object_name}"
+    object_path = f"/{bucket_name}/{object_name}"
     return object_path
 
 
@@ -64,7 +64,7 @@ def get_bucket_objects(
 
     page = []
     for obj in objects:
-        object_path = f"{bucket_name}/{obj.object_name}"
+        object_path = f"/{bucket_name}/{obj.object_name}"
         page.append(object_path)
 
         if len(page) == page_size:

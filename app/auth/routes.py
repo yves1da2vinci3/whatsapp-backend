@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.utils.otp import send_otp
 from .models import User
-from .schemas import Email, UserInfo, TokenResponse, RefreshTokenRequest
+from .schemas import (
+    Email,
+    UserInfo,
+    TokenResponse,
+    RefreshTokenRequest,
+    ModifyUserRequest,
+)
 from app.utils import redis_client
 from app.utils.token import token_manager
 from .repository import UserRepository
@@ -46,11 +52,10 @@ async def enter_email(mail: Email, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-async def verify_otp(
-    mail: Email, otp: int, is_new_user: bool, db: Session = Depends(get_db)
-):
+async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
     user = user_repo.get_user_by_email(mail.email)
+    print(f"user: ${user.to_dict()}")
     otp_from_redis = redis_client.get_otp(mail.email)
     if otp_from_redis:
         otp_from_redis = otp_from_redis.decode("utf-8")
@@ -60,13 +65,13 @@ async def verify_otp(
         access_token = token_manager.create_access_token({"email": mail.email})
         refresh_token = token_manager.create_refresh_token(mail.email)
         userToSend = None
-        userToSend = UserInfo(**user.to_dict()) if not is_new_user else None
+        userToSend = UserInfo(**user.to_dict())
 
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="bearer",
-            user=userToSend.model_dump() if userToSend else {},
+            user=userToSend.model_dump(),
         )
     else:
         raise HTTPException(
@@ -89,11 +94,12 @@ async def resend_otp(mail: Email, db: Session = Depends(get_db)):
 
 @router.post("/register")
 async def register_user(
-    user_info: UserInfo,
+    user_info: ModifyUserRequest,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user_repo = UserRepository(db)
+    
     result = user_repo.update_user(current_user["email"], user_info.model_dump())
     if result:
         return {"message": "User information updated"}
@@ -105,14 +111,15 @@ async def register_user(
 
 @router.put("/modify_user")
 async def modify_user(
-    user_info: UserInfo,
+    user_info: ModifyUserRequest,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user_repo = UserRepository(db)
     result = user_repo.update_user(current_user["email"], user_info.model_dump())
+    user = user_repo.get_user_by_email(current_user["email"])
     if result:
-        return {"message": "User information modified", "user": user_info.model_dump()}
+        return {"message": "User information modified", "user": user.to_dict()}
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
