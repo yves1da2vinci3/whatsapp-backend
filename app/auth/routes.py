@@ -60,7 +60,7 @@ async def verify_otp(
         access_token = token_manager.create_access_token({"email": mail.email})
         refresh_token = token_manager.create_refresh_token(mail.email)
         userToSend = None
-        userToSend = UserInfo(**user) if not is_new_user else None
+        userToSend = UserInfo(**user.to_dict()) if not is_new_user else None
 
         return TokenResponse(
             access_token=access_token,
@@ -112,7 +112,7 @@ async def modify_user(
     user_repo = UserRepository(db)
     result = user_repo.update_user(current_user["email"], user_info.model_dump())
     if result:
-        return {"message": "User information modified"}
+        return {"message": "User information modified", "user": user_info.model_dump()}
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"

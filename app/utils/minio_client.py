@@ -2,7 +2,6 @@ from minio import Minio  # type: ignore
 from dotenv import load_dotenv
 import os
 import json
-from urllib.parse import urljoin
 from typing import List, Generator
 
 load_dotenv()
@@ -13,6 +12,7 @@ minio_client = Minio(
     secret_key=os.getenv("MINIO_SECRET_KEY"),
     secure=False,
 )
+
 
 def upload_to_minio(file_path: str, bucket_name: str, object_name: str) -> str:
     # Check if bucket exists and create it if it doesn't
@@ -30,15 +30,18 @@ def upload_to_minio(file_path: str, bucket_name: str, object_name: str) -> str:
                 "Effect": "Allow",
                 "Principal": {"AWS": "*"},
                 "Action": ["s3:GetObject", "s3:ListBucket"],
-                "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"]
+                "Resource": [
+                    f"arn:aws:s3:::{bucket_name}",
+                    f"arn:aws:s3:::{bucket_name}/*",
+                ],
             },
             {
                 "Effect": "Deny",
                 "Principal": {"AWS": "*"},
                 "Action": ["s3:PutObject", "s3:DeleteObject"],
-                "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
-            }
-        ]
+                "Resource": [f"arn:aws:s3:::{bucket_name}/*"],
+            },
+        ],
     }
 
     # Set the policy
@@ -50,23 +53,23 @@ def upload_to_minio(file_path: str, bucket_name: str, object_name: str) -> str:
     print(f"File uploaded: {object_name}")
 
     # Construct and return the object path
-    base_url = "http://localhost:9000"  # Adjust this if your MinIO server has a different URL
-    object_path = urljoin(base_url, f"{bucket_name}/{object_name}")
+    object_path = f"{bucket_name}/{object_name}"
     return object_path
 
-def get_bucket_objects(bucket_name: str, prefix: str = "", page_size: int = 1000) -> Generator[List[str], None, None]:
+
+def get_bucket_objects(
+    bucket_name: str, prefix: str = "", page_size: int = 1000
+) -> Generator[List[str], None, None]:
     objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
-    base_url = "http://localhost:9000"  # Adjust this if your MinIO server has a different URL
-    
+
     page = []
     for obj in objects:
-        object_path = urljoin(base_url, f"{bucket_name}/{obj.object_name}")
+        object_path = f"{bucket_name}/{obj.object_name}"
         page.append(object_path)
-        
+
         if len(page) == page_size:
             yield page
             page = []
-    
+
     if page:
         yield page
-
