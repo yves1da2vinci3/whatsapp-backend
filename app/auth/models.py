@@ -8,8 +8,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, nullable=False)
     full_name = Column(String, nullable=False)
-    image = Column(String)
-    contacts = Column(Text)  # Storing list of contacts as a string (could be JSON if preferred)
+    image = Column(String,nullable=False)
+    contacts = Column(Text,nullable=False)  # Storing list of contacts as a string (could be JSON if preferred)
 
     chats = relationship('Chat', secondary=association_tables.user_chats, back_populates='participants')
     messages = relationship('Message', back_populates='user')
