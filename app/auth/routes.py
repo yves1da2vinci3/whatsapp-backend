@@ -51,6 +51,7 @@ async def enter_email(mail: Email, db: Session = Depends(get_db)):
 async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
     user = user_repo.get_user_by_email(mail.email)
+    user_id = user.to_dict().get("id")
     print(f"user: ${user.to_dict()}")
     otp_from_redis = redis_client.get_otp(mail.email)
     if otp_from_redis:
@@ -59,9 +60,9 @@ async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
     if user and otp_from_redis == str(otp):
         redis_client.delete_otp(mail.email)
         access_token = token_manager.create_access_token(
-            {"email": mail.email, "id": user.to_dict().get("id")}
+            {"email": mail.email, "id": user_id}
         )
-        refresh_token = token_manager.create_refresh_token(mail.email)
+        refresh_token = token_manager.create_refresh_token(mail.email, user_id)
         userToSend = None
         userToSend = UserInfo(**user.to_dict())
 
@@ -130,7 +131,7 @@ async def refresh_token(refresh_tokenRequest: RefreshTokenRequest):
     if new_tokens:
         return TokenResponse(
             access_token=new_tokens["access_token"],
-            refresh_token=new_tokens["refresh_token"],
+            refresh_token="",
             token_type="bearer",
             user={},  # Assuming no user information needed here
         )

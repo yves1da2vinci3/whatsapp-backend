@@ -56,8 +56,10 @@ class TokenManager:
             email = payload.get("email")
             id = payload.get("id")
             stored_session = get_session(email)
+            refresh_token_from_redis = stored_session[b"refresh_token"].decode("utf-8")
+            print(f" refresh token stored_session:  {refresh_token_from_redis}")
 
-            if stored_session and stored_session.get("refresh_token") == refresh_token:
+            if stored_session and refresh_token_from_redis == refresh_token:
                 new_access_token = self.create_access_token({"email": email, "id": id})
                 return {
                     "access_token": new_access_token,
