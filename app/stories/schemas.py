@@ -1,8 +1,17 @@
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
 
-class StoryCreate(BaseModel):
-    user_id: str
+class StoryBase(BaseModel):
+    type: str
+    user_id: int
+
+class StoryCreate(StoryBase):
     content: str
-    type: str  # image, video, text
-    timestamp: datetime
+
+class StoryResponse(StoryBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True

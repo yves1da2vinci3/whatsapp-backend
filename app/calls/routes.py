@@ -1,23 +1,36 @@
 from fastapi import APIRouter, HTTPException, Depends
-from app.utils.database import get_db
+from sqlalchemy.orm import Session
+from app.database import get_db
 from .models import Call
-from .schemas import CallCreate
-
+from .schemas import CallCreate, CallUpdate
+from .repository import CallRepository
+from typing import List
 router = APIRouter()
 
-@router.post("/make_call")
-async def make_call(call: CallCreate, db=Depends(get_db)):
-    db.calls.insert_one(call.dict())
-    return {"message": "Call initiated"}
+@router.post("/create", response_model=Call)
+async def create_call(call: CallCreate, db: Session = Depends(get_db)):
+    call_repo = CallRepository(db)
+    new_call = Call(**call.dict())
+    created_call = call_repo.create_call(new_call)
+    return created_call
 
-@router.get("/history")
-async def get_call_history(user_id: str, db=Depends(get_db)):
-    calls = list(db.calls.find({"participants": user_id}))
-    return calls
-
-@router.get("/history/{call_id}")
-async def get_one_call_history(call_id: str, db=Depends(get_db)):
-    call = db.calls.find_one({"_id": call_id})
+@router.get("/{call_id}", response_model=Call)
+async def get_call(call_id: int, db: Session = Depends(get_db)):
+    call_repo = CallRepository(db)
+    call = call_repo.get_call_by_id(call_id)
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     return call
+
+@router.put("/{call_id}", response_model=Call)
+async def update_call(call_id: int, call: CallUpdate, db: Session = Depends(get_db)):
+    call_repo = CallRepository(db)
+    result = call_repo.update_call(call_id, call.dict())
+    if not result:
+        raise HTTPException(status_code=404, detail="Call not found")
+    return call_repo.get_call_by_id(call_id)
+
+@router.get("/", response_model=List[Call])
+async def get_all_calls(db: Session = Depends(get_db)):
+    call_repo = CallRepository(db)
+    return call_repo.get_all_calls()

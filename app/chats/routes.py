@@ -1,36 +1,36 @@
 from fastapi import APIRouter, HTTPException, Depends
-from app.utils.database import get_db
-from .models import Chat, Message
-from .schemas import MessageCreate
-
+from sqlalchemy.orm import Session
+from app.database import get_db
+from .models import Chat
+from  .schemas import ChatCreate, ChatUpdate
+from .repository import ChatRepository
+from typing import List
 router = APIRouter()
 
-@router.get("/")
-async def get_all_chats(user_id: str, db=Depends(get_db)):
-    chats = list(db.chats.find({"participants": user_id}))
-    return chats
+@router.post("/create", response_model=Chat)
+async def create_chat(chat: ChatCreate, db: Session = Depends(get_db)):
+    chat_repo = ChatRepository(db)
+    new_chat = Chat(**chat.dict())
+    created_chat = chat_repo.create_chat(new_chat)
+    return created_chat
 
-@router.get("/{chat_id}")
-async def get_chat(chat_id: str, db=Depends(get_db)):
-    chat = db.chats.find_one({"_id": chat_id})
+@router.get("/{chat_id}", response_model=Chat)
+async def get_chat(chat_id: int, db: Session = Depends(get_db)):
+    chat_repo = ChatRepository(db)
+    chat = chat_repo.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
-@router.post("/{chat_id}/send_message")
-async def send_message(chat_id: str, message: MessageCreate, db=Depends(get_db)):
-    db.chats.update_one({"_id": chat_id}, {"$push": {"messages": message.dict()}})
-    return {"message": "Message sent"}
-
-@router.delete("/{chat_id}/delete_message")
-async def delete_message(chat_id: str, message_id: str, db=Depends(get_db)):
-    db.chats.update_one({"_id": chat_id}, {"$pull": {"messages": {"_id": message_id}}})
-    return {"message": "Message deleted"}
-
-@router.get("/{chat_id}/media")
-async def get_media(chat_id: str, db=Depends(get_db)):
-    chat = db.chats.find_one({"_id": chat_id})
-    if not chat:
+@router.put("/{chat_id}", response_model=Chat)
+async def update_chat(chat_id: int, chat: ChatUpdate, db: Session = Depends(get_db)):
+    chat_repo = ChatRepository(db)
+    result = chat_repo.update_chat(chat_id, chat.dict())
+    if not result:
         raise HTTPException(status_code=404, detail="Chat not found")
-    media = [msg for msg in chat['messages'] if msg['type'] in ['video', 'audio', 'image', 'file']]
-    return media
+    return chat_repo.get_chat_by_id(chat_id)
+
+@router.get("/", response_model=List[Chat])
+async def get_all_chats(db: Session = Depends(get_db)):
+    chat_repo = ChatRepository(db)
+    return chat_repo.get_all_chats()

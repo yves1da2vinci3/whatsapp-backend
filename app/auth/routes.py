@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer
-from app.utils.database import get_db
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.utils.otp import send_otp
 from .models import User
 from .schemas import Email, UserInfo, TokenResponse, RefreshTokenRequest
 from app.utils import redis_client
 from app.utils.token import token_manager
+from .repository import UserRepository
 
 router = APIRouter()
 oauth2_scheme = HTTPBearer()
@@ -30,21 +32,25 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 @router.post("/enter-mail")
-async def enter_email(mail: Email, db=Depends(get_db)):
-    user = db.users.find_one({"email": mail.email})
+async def enter_email(mail: Email, db: Session = Depends(get_db)):
+    user_repo = UserRepository(db)
+    user = user_repo.get_user_by_email(mail.email)
     if user:
-        send_otp(email=user["email"])
+        send_otp(email=user.email)
         return {"message": "User found, OTP sent", "is_new_user": False}
     else:
         new_user = User(email=mail.email)
-        db.users.insert_one(new_user.model_dump())
+        user_repo.create_user(new_user)
         send_otp(email=mail.email)
         return {"message": "User created, OTP sent", "is_new_user": True}
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-async def verify_otp(mail: Email, otp: int, is_new_user: bool, db=Depends(get_db)):
-    user = db.users.find_one({"email": mail.email})
+async def verify_otp(
+    mail: Email, otp: int, is_new_user: bool, db: Session = Depends(get_db)
+):
+    user_repo = UserRepository(db)
+    user = user_repo.get_user_by_email(mail.email)
     otp_from_redis = redis_client.get_otp(mail.email)
     if otp_from_redis:
         otp_from_redis = otp_from_redis.decode("utf-8")
@@ -69,10 +75,11 @@ async def verify_otp(mail: Email, otp: int, is_new_user: bool, db=Depends(get_db
 
 
 @router.post("/resend-otp")
-async def resend_otp(mail: Email, db=Depends(get_db)):
-    user = db.users.find_one({"email": mail.email})
+async def resend_otp(mail: Email, db: Session = Depends(get_db)):
+    user_repo = UserRepository(db)
+    user = user_repo.get_user_by_email(mail.email)
     if user:
-        send_otp(email=user["email"])
+        send_otp(email=user.email)
         return {"message": "OTP resent"}
     else:
         raise HTTPException(
@@ -84,12 +91,11 @@ async def resend_otp(mail: Email, db=Depends(get_db)):
 async def register_user(
     user_info: UserInfo,
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    result = db.users.update_one(
-        {"email": current_user["email"]}, {"$set": user_info.model_dump()}
-    )
-    if result.modified_count:
+    user_repo = UserRepository(db)
+    result = user_repo.update_user(current_user["email"], user_info.model_dump())
+    if result:
         return {"message": "User information updated"}
     else:
         raise HTTPException(
@@ -101,12 +107,11 @@ async def register_user(
 async def modify_user(
     user_info: UserInfo,
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    result = db.users.update_one(
-        {"email": current_user["email"]}, {"$set": user_info.model_dump()}
-    )
-    if result.modified_count:
+    user_repo = UserRepository(db)
+    result = user_repo.update_user(current_user["email"], user_info.model_dump())
+    if result:
         return {"message": "User information modified"}
     else:
         raise HTTPException(
@@ -117,7 +122,6 @@ async def modify_user(
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(refresh_tokenRequest: RefreshTokenRequest):
     new_tokens = token_manager.refresh_tokens(refresh_tokenRequest.refresh_token)
-    print(new_tokens)
     if new_tokens:
         return TokenResponse(
             access_token=new_tokens["access_token"],
