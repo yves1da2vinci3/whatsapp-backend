@@ -1,39 +1,40 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Optional
+from app.enums import ChatType, MessageType
 
-class ChatBase(BaseModel):
-    name: str
+class ChatCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
     image: Optional[str] = None
-    created_time: datetime
-    type: str
-    admin_id: int
-
-class ChatCreate(ChatBase):
-    participants: List[int]
+    type: ChatType
 
 class ChatUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
     image: Optional[str] = None
 
-class ChatResponse(ChatBase):
-    id: int
-    participants: List[int]
-
-    class Config:
-        orm_mode = True
-
-class MessageBase(BaseModel):
+class MessageCreate(BaseModel):
     content: str
-    type: str
+    type: MessageType
 
-class MessageCreate(MessageBase):
-    user_id: int
-    chat_id: int
-
-class MessageResponse(MessageBase):
+class MessageResponse(BaseModel):
     id: int
-    created_at: datetime
+    content: str
+    type: MessageType
+    chat_id: int
+    user_id: int
+    created_time: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class ChatResponse(BaseModel):
+    id: int
+    name: str
+    image: Optional[str]
+    created_time: datetime
+    type: ChatType
+    admin_id: int
+    last_message: Optional[MessageResponse]
+
+    class Config:
+        from_attributes = True

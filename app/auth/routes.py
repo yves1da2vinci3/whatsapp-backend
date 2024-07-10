@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.utils.otp import send_otp
@@ -16,19 +16,15 @@ from app.utils.token import token_manager
 from .repository import UserRepository
 
 router = APIRouter()
-oauth2_scheme = HTTPBearer()
+security = HTTPBearer()
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    payload = token.credentials
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    user_data = token_manager.validate_token(payload)
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    print("Received token:", credentials.credentials)
+    user_data = token_manager.validate_token(credentials.credentials)
+    print("Validated user data:", user_data)
     if not user_data:
+        print("Raising 401 exception")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -62,7 +58,9 @@ async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
 
     if user and otp_from_redis == str(otp):
         redis_client.delete_otp(mail.email)
-        access_token = token_manager.create_access_token({"email": mail.email})
+        access_token = token_manager.create_access_token(
+            {"email": mail.email, "id": user.to_dict().get("id")}
+        )
         refresh_token = token_manager.create_refresh_token(mail.email)
         userToSend = None
         userToSend = UserInfo(**user.to_dict())
@@ -99,7 +97,7 @@ async def register_user(
     db: Session = Depends(get_db),
 ):
     user_repo = UserRepository(db)
-    
+
     result = user_repo.update_user(current_user["email"], user_info.model_dump())
     if result:
         return {"message": "User information updated"}

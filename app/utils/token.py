@@ -8,6 +8,7 @@ import os
 # Load environment variables from a .env file
 load_dotenv()
 
+
 class TokenManager:
     def __init__(self, secret_key: str):
         self.secret_key = secret_key
@@ -21,10 +22,12 @@ class TokenManager:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm="HS256")
         return encoded_jwt
 
-    def create_refresh_token(self, email: str) -> str:
+    def create_refresh_token(self, email: str, id: int) -> str:
         expire = datetime.now() + timedelta(days=self.refresh_token_expire_days)
         refresh_token = jwt.encode(
-            {"email": email, "exp": expire}, self.secret_key, algorithm="HS256"
+            {"email": email, "id": id, "exp": expire},
+            self.secret_key,
+            algorithm="HS256",
         )
         set_session(
             email,
@@ -51,14 +54,13 @@ class TokenManager:
             payload = jwt.decode(refresh_token, self.secret_key, algorithms=["HS256"])
             print(f"payload:  {payload}")
             email = payload.get("email")
+            id = payload.get("id")
             stored_session = get_session(email)
 
             if stored_session and stored_session.get("refresh_token") == refresh_token:
-                new_access_token = self.create_access_token({"email": email})
-                new_refresh_token = self.create_refresh_token(email)
+                new_access_token = self.create_access_token({"email": email, "id": id})
                 return {
                     "access_token": new_access_token,
-                    "refresh_token": new_refresh_token,
                 }
             return None
         except jwt.ExpiredSignatureError:
@@ -68,6 +70,7 @@ class TokenManager:
 
     def revoke_refresh_token(self, email: str):
         delete_session(email)
+
 
 # Initialize the TokenManager with the secret key from environment variables
 token_manager = TokenManager(os.getenv("SECRET_KEY"))
