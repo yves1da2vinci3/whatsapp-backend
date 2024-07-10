@@ -1,4 +1,4 @@
-from sqlalchemy import desc
+from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session, selectinload
 from .models import Chat, Message
 from app.auth.models import User
@@ -64,18 +64,48 @@ class ChatRepository:
     def get_user_chats(
         self, user_id: int, skip: int = 0, limit: int = 20
     ) -> List[Chat]:
-        return (
+        # Subquery to get the latest message for each chat
+        latest_message_subquery = (
+            self.db.query(
+                func.max(Message.created_time).label("max_created_time"),
+                Message.chat_id,
+            )
+            .group_by(Message.chat_id)
+            .subquery()
+        )
+
+        # Subquery to get the latest message details
+        latest_message_details = (
+            self.db.query(Message)
+            .join(
+                latest_message_subquery,
+                and_(
+                    Message.chat_id == latest_message_subquery.c.chat_id,
+                    Message.created_time == latest_message_subquery.c.max_created_time,
+                ),
+            )
+            .subquery()
+        )
+
+        # Main query to get user chats with latest messages
+        chats = (
             self.db.query(Chat)
+            .outerjoin(
+                latest_message_details, Chat.id == latest_message_details.c.chat_id
+            )
             .filter((Chat.admin_id == user_id) | (Chat.participants.any(id=user_id)))
+            .order_by(latest_message_details.c.created_time.desc())
             .options(
                 selectinload(
-                    Chat.messages.order_by(desc(Message.created_time)).limit(1)
+                    Chat.messages.and_(Message.id == latest_message_details.c.id)
                 )
             )
             .offset(skip)
             .limit(limit)
             .all()
         )
+
+        return chats
 
     def get_chat_messages(
         self, chat_id: int, skip: int = 0, limit: int = 50

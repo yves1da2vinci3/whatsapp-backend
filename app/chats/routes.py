@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from fastapi.security import  HTTPBearer
+from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -26,7 +26,7 @@ async def create_chat(
     db: Session = Depends(get_db),
 ):
     chat_repo = ChatRepository(db)
-    new_chat = Chat(**chat.model_dump(), admin_id=current_user.id)
+    new_chat = Chat(**chat.model_dump(), admin_id=current_user["id"])
     created_chat = chat_repo.create_chat(new_chat)
     return ChatResponse.from_orm(created_chat)
 
@@ -41,7 +41,7 @@ async def get_chat(
     chat = chat_repo.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if not chat_repo.is_user_in_chat(chat_id, current_user.id):
+    if not chat_repo.is_user_in_chat(chat_id, current_user["id"]):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this chat"
         )
@@ -59,13 +59,12 @@ async def update_chat(
     existing_chat = chat_repo.get_chat_by_id(chat_id)
     if not existing_chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if current_user.id != existing_chat.admin_id:
+    if current_user["id"] != existing_chat.admin_id:
         raise HTTPException(
             status_code=403, detail="Not authorized to update this chat"
         )
     updated_chat = chat_repo.update_chat(chat_id, chat.model_dump(exclude_unset=True))
     return ChatResponse.from_orm(updated_chat)
-
 
 
 @router.delete("/{chat_id}", status_code=204)
@@ -78,7 +77,7 @@ async def delete_chat(
     chat = chat_repo.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if current_user.id != chat.admin_id:
+    if current_user["id"] != chat.admin_id:
         raise HTTPException(
             status_code=403, detail="Not authorized to delete this chat"
         )
@@ -96,7 +95,7 @@ async def add_user_to_chat(
     chat = chat_repo.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if current_user.id != chat.admin_id:
+    if current_user["id"] != chat.admin_id:
         raise HTTPException(
             status_code=403, detail="Not authorized to add users to this chat"
         )
@@ -115,7 +114,7 @@ async def remove_user_from_chat(
     chat = chat_repo.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if current_user.id != chat.admin_id:
+    if current_user["id"] != chat.admin_id:
         raise HTTPException(
             status_code=403, detail="Not authorized to remove users from this chat"
         )
@@ -127,12 +126,11 @@ async def remove_user_from_chat(
 async def get_user_chats(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    print(f"current user ${current_user}")
     chat_repo = ChatRepository(db)
-    chats = chat_repo.get_user_chats(current_user.id, skip, limit)
+    chats = chat_repo.get_user_chats(current_user["id"], skip, limit)
     return [
         ChatResponse(
             **chat.__dict__, last_message=chat.messages[0] if chat.messages else None
@@ -150,7 +148,7 @@ async def get_chat_messages(
     db: Session = Depends(get_db),
 ):
     chat_repo = ChatRepository(db)
-    if not chat_repo.is_user_in_chat(chat_id, current_user.id):
+    if not chat_repo.is_user_in_chat(chat_id, current_user["id"]):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this chat"
         )
@@ -166,12 +164,12 @@ async def create_message(
     db: Session = Depends(get_db),
 ):
     chat_repo = ChatRepository(db)
-    if not chat_repo.is_user_in_chat(chat_id, current_user.id):
+    if not chat_repo.is_user_in_chat(chat_id, current_user["id"]):
         raise HTTPException(
             status_code=403, detail="Not authorized to send messages in this chat"
         )
     new_message = Message(
-        **message.model_dump(), chat_id=chat_id, user_id=current_user.id
+        **message.model_dump(), chat_id=chat_id, user_id=current_user["id"]
     )
     created_message = chat_repo.create_message(new_message)
     return MessageResponse.from_orm(created_message)
@@ -192,7 +190,7 @@ async def delete_message(
         raise HTTPException(
             status_code=400, detail="Message does not belong to this chat"
         )
-    if message.user_id != current_user.id:
+    if message.user_id != current_user["id"]:
         raise HTTPException(
             status_code=403, detail="Not authorized to delete this message"
         )

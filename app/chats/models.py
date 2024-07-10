@@ -29,6 +29,7 @@ class Message(Base):
     type = Column(Enum(MessageType), nullable=False)
     chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_time = Column(DateTime, default=datetime.datetime.now())
 
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User", back_populates="messages")
