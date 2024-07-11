@@ -5,11 +5,11 @@ from app.chats.routes import router as chat_router
 from app.stories.routes import router as story_router
 from app.calls.routes import router as call_router
 from app.upload.routes import router as upload_router
-from app.database import Base, engine
+# from app.database import Base, engine
 
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# # Create tables
+# Base.metadata.create_all(bind=engine)
 
 
 def init_middleware(app):

@@ -14,7 +14,6 @@ class Chat(Base):
     created_time = Column(DateTime, default=datetime.datetime.now())
     type = Column(Enum(ChatType), nullable=False)
     admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-
     admin = relationship("User", back_populates="chats")
     participants = relationship(
         "User", secondary=association_tables.user_chats, back_populates="chats"
