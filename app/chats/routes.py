@@ -28,7 +28,14 @@ async def create_chat(
     chat_repo = ChatRepository(db)
     new_chat = Chat(**chat.model_dump(), admin_id=current_user["id"])
     created_chat = chat_repo.create_chat(new_chat)
-    return ChatResponse.from_orm(created_chat)
+    # create chat participants
+    for participant_email in chat.participants:
+        participant = db.query(User).filter(User.id == participant_email).first()
+        if participant:
+            chat.participants.append(participant)
+    db.commit()
+    db.refresh(created_chat)
+    return ChatResponse.model_validate(created_chat)
 
 
 @router.get("/{chat_id}", response_model=ChatResponse)
@@ -45,7 +52,7 @@ async def get_chat(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this chat"
         )
-    return ChatResponse.from_orm(chat)
+    return ChatResponse.model_validate(chat)
 
 
 @router.put("/{chat_id}", response_model=ChatResponse)
@@ -64,7 +71,7 @@ async def update_chat(
             status_code=403, detail="Not authorized to update this chat"
         )
     updated_chat = chat_repo.update_chat(chat_id, chat.model_dump(exclude_unset=True))
-    return ChatResponse.from_orm(updated_chat)
+    return ChatResponse.model_validate(updated_chat)
 
 
 @router.delete("/{chat_id}", status_code=204)
@@ -131,9 +138,12 @@ async def get_user_chats(
 ):
     chat_repo = ChatRepository(db)
     chats = chat_repo.get_user_chats(current_user["id"], skip, limit)
+    if not chats:
+        return []
     return [
         ChatResponse(
-            **chat.__dict__, last_message=chat.messages[0] if chat.messages else None
+            **chat.__dict__,
+            last_message=chat.messages[0] if chat.messages else None,
         )
         for chat in chats
     ]
@@ -153,7 +163,7 @@ async def get_chat_messages(
             status_code=403, detail="Not authorized to access this chat"
         )
     messages = chat_repo.get_chat_messages(chat_id, skip, limit)
-    return [MessageResponse.from_orm(message) for message in messages]
+    return [MessageResponse.model_validate(message) for message in messages]
 
 
 @router.post("/{chat_id}/messages", response_model=MessageResponse)
@@ -172,7 +182,7 @@ async def create_message(
         **message.model_dump(), chat_id=chat_id, user_id=current_user["id"]
     )
     created_message = chat_repo.create_message(new_message)
-    return MessageResponse.from_orm(created_message)
+    return MessageResponse.model_validate(created_message)
 
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)

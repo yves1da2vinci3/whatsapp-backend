@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 from .models import User
 from typing import List, Optional
 
-class UserRepository:
 
+class UserRepository:
     def __init__(self, db: Session):
         self.db = db
 
@@ -21,5 +21,5 @@ class UserRepository:
         self.db.commit()
         return result
 
-    def get_all_users(self) -> List[User]:
-        return self.db.query(User).all()
+    def get_all_users(self, email: str) -> List[User]:
+        return self.db.query(User).filter(User.email != email).all()

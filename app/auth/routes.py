@@ -146,3 +146,12 @@ async def refresh_token(refresh_tokenRequest: RefreshTokenRequest):
 async def logout(current_user: dict = Depends(get_current_user)):
     token_manager.revoke_refresh_token(current_user["email"])
     return {"message": "Successfully logged out"}
+
+
+@router.get("/users")
+async def get_users(
+    db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)
+):
+    user_repo = UserRepository(db)
+    users = user_repo.get_all_users(current_user["email"])
+    return {"users": users}
