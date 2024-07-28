@@ -5,6 +5,7 @@ from app.auth.models import User
 from typing import List, Optional
 
 
+    
 class ChatRepository:
     def __init__(self, db: Session):
         self.db = db
@@ -68,7 +69,7 @@ class ChatRepository:
         latest_message_subquery = (
             self.db.query(
                 func.max(Message.created_time).label("max_created_time"),
-                Message.chat_id,
+                Message.chat_id.label("chat_id"),
             )
             .group_by(Message.chat_id)
             .subquery()
@@ -76,7 +77,7 @@ class ChatRepository:
 
         # Subquery to get the latest message details
         latest_message_details = (
-            self.db.query(Message)
+            self.db.query(Message, latest_message_subquery.c.max_created_time)
             .join(
                 latest_message_subquery,
                 and_(
@@ -94,11 +95,12 @@ class ChatRepository:
                 latest_message_details, Chat.id == latest_message_details.c.chat_id
             )
             .filter((Chat.admin_id == user_id) | (Chat.participants.any(id=user_id)))
-            .order_by(latest_message_details.c.created_time.desc())
+            .order_by(latest_message_details.c.max_created_time.desc())
             .options(
+                selectinload(Chat.participants),
                 selectinload(
                     Chat.messages.and_(Message.id == latest_message_details.c.id)
-                )
+                ),
             )
             .offset(skip)
             .limit(limit)

@@ -10,6 +10,7 @@ from .schemas import (
     ChatResponse,
     MessageCreate,
     MessageResponse,
+    user_to_user_response,
 )
 from .repository import ChatRepository
 from app.auth.routes import get_current_user
@@ -140,15 +141,32 @@ async def get_user_chats(
 ):
     chat_repo = ChatRepository(db)
     chats = chat_repo.get_user_chats(current_user["id"], skip, limit)
-    if not chats:
-        return []
-    return [
-        ChatResponse(
-            **chat.__dict__,
-            last_message=chat.messages[0] if chat.messages else None,
+    chat_responses = []
+    for chat in chats:
+        latest_message = chat.messages[0] if chat.messages else None
+        chat_response = ChatResponse(
+            id=chat.id,
+            admin_id=chat.admin_id,
+            type=chat.type,
+            image=chat.image,
+            created_time=chat.created_time,
+            name=chat.name,
+            participants=[
+                user_to_user_response(participant) for participant in chat.participants
+            ],
+            last_message=MessageResponse(
+                id=latest_message.id,
+                user_id=latest_message.sender_id,
+                content=latest_message.content,
+                created_time=latest_message.created_time,
+            )
+            if latest_message
+            else None,
+            # Add other fields as necessary
         )
-        for chat in chats
-    ]
+        chat_responses.append(chat_response)
+
+    return chat_responses
 
 
 @router.get("/{chat_id}/messages", response_model=List[MessageResponse])
