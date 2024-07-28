@@ -1,12 +1,13 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from app.enums import ChatType, MessageType
 
 class ChatCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     image: Optional[str] = None
     type: ChatType
+    participants_ids: List[int]
 
 class ChatUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)

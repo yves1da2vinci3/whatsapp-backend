@@ -19,23 +19,28 @@ router = APIRouter()
 security = HTTPBearer()
 
 
-@router.post("/", response_model=ChatResponse)
+@router.post("/")
 async def create_chat(
     chat: ChatCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     chat_repo = ChatRepository(db)
-    new_chat = Chat(**chat.model_dump(), admin_id=current_user["id"])
+    new_chat = Chat(
+        name=chat.name, image=chat.image, type=chat.type, admin_id=current_user["id"]
+    )
     created_chat = chat_repo.create_chat(new_chat)
-    # create chat participants
-    for participant_email in chat.participants:
-        participant = db.query(User).filter(User.id == participant_email).first()
+
+    # Create chat participants
+    for participant_id in chat.participants_ids:
+        participant = db.query(User).filter(User.id == participant_id).first()
         if participant:
-            chat.participants.append(participant)
+            created_chat.participants.append(participant)
+
+    db.add(created_chat)
     db.commit()
     db.refresh(created_chat)
-    return ChatResponse.model_validate(created_chat)
+    return {"chat": created_chat}
 
 
 @router.get("/{chat_id}", response_model=ChatResponse)
