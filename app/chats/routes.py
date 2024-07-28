@@ -29,17 +29,14 @@ async def create_chat(
     new_chat = Chat(
         name=chat.name, image=chat.image, type=chat.type, admin_id=current_user["id"]
     )
-    created_chat = chat_repo.create_chat(new_chat)
 
     # Create chat participants
     for participant_id in chat.participants_ids:
         participant = db.query(User).filter(User.id == participant_id).first()
         if participant:
-            created_chat.participants.append(participant)
+            new_chat.participants.append(participant)
 
-    db.add(created_chat)
-    db.commit()
-    db.refresh(created_chat)
+    created_chat = chat_repo.create_chat(new_chat)
     return {"chat": created_chat}
 
 
