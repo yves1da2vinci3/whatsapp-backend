@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer
+from psycopg2 import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -15,7 +16,7 @@ from .schemas import (
 from .repository import ChatRepository
 from app.auth.routes import get_current_user
 from app.auth.models import User
-
+from app.association_tables import user_chats
 router = APIRouter()
 security = HTTPBearer()
 
@@ -27,18 +28,30 @@ async def create_chat(
     db: Session = Depends(get_db),
 ):
     chat_repo = ChatRepository(db)
+
+    # Create the chat
     new_chat = Chat(
-        name=chat.name, image=chat.image, type=chat.type, admin_id=current_user["id"]
+        name=chat.name, image=chat.image, type=chat.type, admin_id=current_user['id']
     )
+    new_chat_created = chat_repo.create_chat(new_chat)
 
-    # Create chat participants
-    for participant_id in chat.participants_ids:
-        participant = db.query(User).filter(User.id == participant_id).first()
-        if participant:
-            new_chat.participants.append(participant)
+    # Add all participants including the current user
+    participant_ids = set(chat.participants_ids) | {current_user["id"]}
 
-    created_chat = chat_repo.create_chat(new_chat)
-    return {"chat": created_chat}
+    # Prepare user_chat entries
+    user_chat_entries = [
+        {"user_id": user_id, "chat_id": new_chat_created.id} for user_id in participant_ids
+    ]
+
+    try:
+        # Bulk insert user_chat entries
+        db.execute(user_chats.insert().values(user_chat_entries))
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise ValueError(f"Error inserting user_chat entries: {str(e)}")
+
+    return {"chat": new_chat}
 
 
 @router.get("/{chat_id}", response_model=ChatResponse)

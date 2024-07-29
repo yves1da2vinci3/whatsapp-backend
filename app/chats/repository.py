@@ -15,7 +15,7 @@ class ChatRepository:
 
     def create_chat(self, chat: Chat) -> Chat:
         self.db.add(chat)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(chat)
         return chat
 
