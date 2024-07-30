@@ -37,44 +37,45 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 async def enter_email(mail: Email, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
     user = user_repo.get_user_by_email(mail.email)
-    if user:
-        send_otp(email=user.email)
-        return {"message": "User found, OTP sent", "is_new_user": False}
-    else:
-        new_user = User(email=mail.email)
-        user_repo.create_user(new_user)
-        send_otp(email=mail.email)
-        return {"message": "User created, OTP sent", "is_new_user": True}
+    is_new_user = not user
+    if is_new_user:
+        user = User(email=mail.email)
+        user_repo.create_user(user)
+
+    await send_otp(email=mail.email)
+    return {"message": "OTP sent", "is_new_user": is_new_user}
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
 async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
     user = user_repo.get_user_by_email(mail.email)
-    user_id = user.to_dict().get("id")
-    print(f"user: ${user.to_dict()}")
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    user_id = user.id
     otp_from_redis = redis_client.get_otp(mail.email)
     if otp_from_redis:
         otp_from_redis = otp_from_redis.decode("utf-8")
 
-    if user and otp_from_redis == str(otp):
+    if otp_from_redis == str(otp):
         redis_client.delete_otp(mail.email)
-        access_token = token_manager.create_access_token(
-            {"email": mail.email, "id": user_id}
-        )
-        refresh_token = token_manager.create_refresh_token(mail.email, user_id)
-        userToSend = None
-        userToSend = UserInfo(**user.to_dict())
+        token_data = {"email": mail.email, "id": user_id}
+        access_token = token_manager.create_access_token(token_data)
+        refresh_token = token_manager.create_refresh_token(token_data)
+        user_info = UserInfo(**user.to_dict())
 
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="bearer",
-            user=userToSend.model_dump(),
+            user=user_info.model_dump(),
         )
     else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP"
+            status_code=status.HTTP_404_NOT_FOUND, detail="OTP not found"
         )
 
 
@@ -82,13 +83,13 @@ async def verify_otp(mail: Email, otp: int, db: Session = Depends(get_db)):
 async def resend_otp(mail: Email, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
     user = user_repo.get_user_by_email(mail.email)
-    if user:
-        send_otp(email=user.email)
-        return {"message": "OTP resent"}
-    else:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+
+    await send_otp(email=user.email)
+    return {"message": "OTP resent"}
 
 
 @router.post("/register")

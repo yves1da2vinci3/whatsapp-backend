@@ -9,7 +9,7 @@ load_dotenv()
 MY_ADDRESS = os.getenv("GMAIL_EMAIL")
 PASSWORD = os.getenv("GMAIL_PASSWORD")
 
-def send_email(email: str, subject: str, message: str):
+async def send_email(email: str, subject: str, message: str):
     try:
         # Create a secure SSL context
         server = smtplib.SMTP("smtp.gmail.com", 587)

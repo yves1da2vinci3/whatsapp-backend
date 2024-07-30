@@ -22,19 +22,19 @@ class TokenManager:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm="HS256")
         return encoded_jwt
 
-    def create_refresh_token(self, email: str, id: int) -> str:
+    def create_refresh_token(self, data: Dict) -> str:
+        to_encode = data.copy()
         expire = datetime.now() + timedelta(days=self.refresh_token_expire_days)
+        to_encode.update({"exp": expire})
         refresh_token = jwt.encode(
-            {"email": email, "id": id, "exp": expire},
+            data,
             self.secret_key,
             algorithm="HS256",
         )
+        email = data.get("email")
         set_session(
             email,
             {
-                "expiresIn": int(
-                    timedelta(days=self.refresh_token_expire_days).total_seconds()
-                ),
                 "refresh_token": refresh_token,
             },
         )
@@ -54,13 +54,15 @@ class TokenManager:
             payload = jwt.decode(refresh_token, self.secret_key, algorithms=["HS256"])
             print(f"payload:  {payload}")
             email = payload.get("email")
-            id = payload.get("id")
+            user_id = payload.get("id")
             stored_session = get_session(email)
             refresh_token_from_redis = stored_session[b"refresh_token"].decode("utf-8")
             print(f" refresh token stored_session:  {refresh_token_from_redis}")
 
             if stored_session and refresh_token_from_redis == refresh_token:
-                new_access_token = self.create_access_token({"email": email, "id": id})
+                new_access_token = self.create_access_token(
+                    {"email": email, "id": user_id}
+                )
                 return {
                     "access_token": new_access_token,
                 }

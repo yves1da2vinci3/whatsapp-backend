@@ -10,7 +10,7 @@ STORIES_PREFIX = "stories:"
 
 
 # OTP functions
-def set_otp(user_id: str, otp: str, expiry: int = 300) -> bool:
+async def set_otp(user_id: str, otp: str, expiry: int = 300) -> bool:
     """Set OTP for a user with expiry (default 5 minutes)"""
     key = f"{OTP_PREFIX}{user_id}"
     return redis_client.setex(key, expiry, otp)
@@ -29,10 +29,18 @@ def delete_otp(user_id: str) -> int:
 
 
 # Session functions
+TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days in seconds
+
+
 def set_session(session_id: str, data: Dict[str, Any]) -> bool:
-    """Set session data"""
+    """Set session data with a TTL of 30 days"""
     key = f"{SESSION_PREFIX}{session_id}"
-    return redis_client.hmset(key, data)
+    # Store the data in Redis
+    success = redis_client.hmset(key, data)
+    if success:
+        # Set the TTL to 30 days
+        redis_client.expire(key, TTL_SECONDS)
+    return success
 
 
 def get_session(session_id: str) -> Dict[str, Any]:
