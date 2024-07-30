@@ -17,6 +17,7 @@ from .repository import ChatRepository
 from app.auth.routes import get_current_user
 from app.auth.models import User
 from app.association_tables import user_chats
+
 router = APIRouter()
 security = HTTPBearer()
 
@@ -31,7 +32,7 @@ async def create_chat(
 
     # Create the chat
     new_chat = Chat(
-        name=chat.name, image=chat.image, type=chat.type, admin_id=current_user['id']
+        name=chat.name, image=chat.image, type=chat.type, admin_id=current_user["id"]
     )
     new_chat_created = chat_repo.create_chat(new_chat)
 
@@ -40,7 +41,8 @@ async def create_chat(
 
     # Prepare user_chat entries
     user_chat_entries = [
-        {"user_id": user_id, "chat_id": new_chat_created.id} for user_id in participant_ids
+        {"user_id": user_id, "chat_id": new_chat_created.id}
+        for user_id in participant_ids
     ]
 
     try:
@@ -168,8 +170,10 @@ async def get_user_chats(
                 user_to_user_response(participant) for participant in chat.participants
             ],
             last_message=MessageResponse(
+                chat_id=latest_message.chat_id,
                 id=latest_message.id,
-                user_id=latest_message.sender_id,
+                type=latest_message.type,
+                user_id=latest_message.user_id,
                 content=latest_message.content,
                 created_time=latest_message.created_time,
             )
@@ -206,6 +210,7 @@ async def create_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    print(f"message recived {message}")
     chat_repo = ChatRepository(db)
     if not chat_repo.is_user_in_chat(chat_id, current_user["id"]):
         raise HTTPException(
